@@ -58,8 +58,7 @@ public class App {
    */
   public static String truncate(byte[] hash) {
     var binCode = extractDynamicBinaryCode(hash);
-    var codeLength = 6;
-    var code = binCode % DIGITS_POWER[codeLength];
+    var code = binCode % DIGITS_POWER[CODE_LENGTH];
     var out = padOutput(code);
     return out;
   }
