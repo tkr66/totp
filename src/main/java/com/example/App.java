@@ -123,17 +123,17 @@ public class App {
   public static void main(String[] args) {
     if (args.length < 1) {
       var usage = """
-      Usage: java App <key> [timeStepSeconds]
-        <key>                The secret key for TOTP generation.
-        [timeStepSeconds]    The time step in seconds (default: 30).
-      """;
+          Usage: java App <key> [timeStepSeconds]
+            <key>                The secret key for TOTP generation.
+            [timeStepSeconds]    The time step in seconds (default: 30).
+          """;
       System.out.println(usage);
       System.exit(0);
     }
     var key = args[0];
-    var timeStepSeconds = args.length >= 2 ?
-      Integer.valueOf(args[1])
-      : 30;
+    var timeStepSeconds = args.length >= 2
+        ? Integer.valueOf(args[1])
+        : 30;
     var totp = generateTOTP(key, timeStepSeconds);
     System.out.println(totp);
   }
