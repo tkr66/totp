@@ -1,15 +1,14 @@
 package com.example;
 
 import java.lang.reflect.UndeclaredThrowableException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
-import java.time.Instant;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public class App {
 
-  private static final int CODE_LENGTH = 6;
   private static final int[] DIGITS_POWER = {
       1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000
   };
@@ -21,9 +20,9 @@ public class App {
    * @return A string representation of the integer, padded with leading zeros to
    *         the specified CODE_LENGTH.
    */
-  public static String padOutput(int value) {
+  public static String padOutput(int value, int digits) {
     var result = Integer.toString(value);
-    for (int i = result.length(); i < CODE_LENGTH; i++) {
+    for (int i = result.length(); i < digits; i++) {
       result = "0" + result;
     }
     return result;
@@ -56,10 +55,10 @@ public class App {
    * @return A string representation of the truncated OTP, padded to the specified
    *         CODE_LENGTH.
    */
-  public static String truncate(byte[] hash) {
+  public static String truncate(byte[] hash, int digits) {
     var binCode = extractDynamicBinaryCode(hash);
-    var code = binCode % DIGITS_POWER[CODE_LENGTH];
-    var out = padOutput(code);
+    var code = binCode % DIGITS_POWER[digits];
+    var out = padOutput(code, digits);
     return out;
   }
 
@@ -85,11 +84,23 @@ public class App {
    * @param counter The counter value to be hashed.
    * @return A string representation of the generated HOTP.
    */
-  public static String generateHOTP(byte[] key, byte[] counter) {
+  public static String generateHOTP(byte[] key, byte[] counter, int digits) {
     // HOTP(K,C) = Truncate(HMAC-SHA-1(K,C))
     var hash = computeHash(key, counter);
-    var hotp = truncate(hash);
+    var hotp = truncate(hash, digits);
     return hotp;
+  }
+
+  public static String generateTOTP(String key, int period) {
+    // X = time step in seconds (default 30)
+    // T0 = unix time to start counting time steps (default 0)
+    // T = (Current Unix time - T0) / X
+    // TOTP = HOTP(K, T)
+    var time = System.currentTimeMillis() / 1000;
+    var step = time / period;
+    var t = ByteBuffer.allocate(Long.BYTES).putLong(step).array();
+    var totp = generateHOTP(key.getBytes(), t, 6);
+    return totp;
   }
 
   /**
@@ -103,38 +114,40 @@ public class App {
    * Password (HOTP) algorithm.
    * </p>
    *
-   * @param key             The secret key used for generating the TOTP,
-   *                        represented as a string.
-   * @param timeStepSeconds The time step in seconds for TOTP generation (e.g., 30
-   *                        seconds).
+   * @param key    The secret key used for generating the TOTP,
+   *               represented as a string.
+   * @param period The time step in seconds for TOTP generation (e.g., 30
+   *               seconds).
+   * @param time   The time represented in Unix Time format.
    * @return A string representation of the generated TOTP.
    */
-  public static String generateTOTP(String key, int timeStepSeconds) {
+  public static String generateTOTP(byte[] secret, int period, long time, int digits) {
     // X = time step in seconds (default 30)
     // T0 = unix time to start counting time steps (default 0)
     // T = (Current Unix time - T0) / X
     // TOTP = HOTP(K, T)
-    var step = Instant.now().getEpochSecond() / timeStepSeconds;
+    var step = time / period;
     var t = ByteBuffer.allocate(Long.BYTES).putLong(step).array();
-    var totp = generateHOTP(key.getBytes(), t);
+    var totp = generateHOTP(secret, t, digits);
     return totp;
   }
 
   public static void main(String[] args) {
     if (args.length < 1) {
       var usage = """
-          Usage: java App <key> [timeStepSeconds]
+          Usage: java App <key> [period]
             <key>                The secret key for TOTP generation.
-            [timeStepSeconds]    The time step in seconds (default: 30).
+            [period]    The time step in seconds (default: 30).
           """;
       System.out.println(usage);
       System.exit(0);
     }
     var key = args[0];
-    var timeStepSeconds = args.length >= 2
+    var period = args.length >= 2
         ? Integer.valueOf(args[1])
         : 30;
-    var totp = generateTOTP(key, timeStepSeconds);
+    var time = System.currentTimeMillis() / 1000;
+    var totp = generateTOTP(key.getBytes(), period, time, 6);
     System.out.println(totp);
   }
 }
