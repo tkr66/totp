@@ -1,11 +1,12 @@
 package com.example;
 
 import java.lang.reflect.UndeclaredThrowableException;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.codec.binary.Base32;
 
 public class App {
 
@@ -147,7 +148,8 @@ public class App {
         ? Integer.valueOf(args[1])
         : 30;
     var time = System.currentTimeMillis() / 1000;
-    var totp = generateTOTP(key.getBytes(), period, time, 6);
+    var decoded = new Base32().decode(key);
+    var totp = generateTOTP(decoded, period, time, 6);
     System.out.println(totp);
   }
 }
