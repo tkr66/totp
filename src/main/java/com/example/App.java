@@ -3,6 +3,7 @@ package com.example;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -133,12 +134,29 @@ public class App {
     return totp;
   }
 
+  public static String[] generateTOTP(byte[] secret,
+      int period,
+      long time,
+      int digits,
+      int window) {
+    var values = new String[window];
+    var idx = 0;
+    for (var i = -window / 2; i <= (window - 1) / 2; i++) {
+      var step = time / period;
+      step += i;
+      var counter = ByteBuffer.allocate(Long.BYTES).putLong(step).array();
+      values[idx++] = generateHOTP(secret, counter, digits);
+    }
+    return values;
+  }
+
   public static void main(String[] args) {
     if (args.length < 1) {
       var usage = """
           Usage: java App <key> [period]
             <key>                The secret key for TOTP generation.
             [period]    The time step in seconds (default: 30).
+            [window]    The size of a window (default: 3).
           """;
       System.out.println(usage);
       System.exit(0);
@@ -147,9 +165,12 @@ public class App {
     var period = args.length >= 2
         ? Integer.valueOf(args[1])
         : 30;
+    var window = args.length == 3
+        ? Integer.valueOf(args[2])
+        : 3;
     var time = System.currentTimeMillis() / 1000;
     var decoded = new Base32().decode(key);
-    var totp = generateTOTP(decoded, period, time, 6);
-    System.out.println(totp);
+    var totp = generateTOTP(decoded, period, time, 6, window);
+    System.out.println(Arrays.toString(totp));
   }
 }
